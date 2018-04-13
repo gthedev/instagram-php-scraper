@@ -484,6 +484,7 @@ class Instagram
             $medias[] = Media::create($mediaArray['node']);
         }
 
+        // Fetch max id and next page information
         $maxId = $arr['data']['user']['edge_owner_to_timeline_media']['page_info']['end_cursor'];
         $hasNextPage = $arr['data']['user']['edge_owner_to_timeline_media']['page_info']['has_next_page'];
 
