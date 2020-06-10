@@ -63,7 +63,7 @@ class Media extends AbstractModel
     /**
      * @var array
      */
-    protected $squareThumbnailsUrl = [];
+    protected $squareImages = [];
 
     /**
      * @var array
@@ -141,6 +141,11 @@ class Media extends AbstractModel
     protected $comments = [];
 
     /**
+     * @var Comment[]
+     */
+    protected $previewComments = [];
+
+    /**
      * @var bool
      */
     protected $hasMoreComments = false;
@@ -154,6 +159,21 @@ class Media extends AbstractModel
      * @var Media[]|array
      */
     protected $sidecarMedias = [];
+
+    /**
+     * @var string
+     */
+    protected $locationSlug;
+
+    /**
+     * @var string
+     */
+    protected $altText;
+
+    /**
+     * @var string
+     */
+    protected $locationAddressJson;
 
     /**
      * @param string $code
@@ -196,7 +216,7 @@ class Media extends AbstractModel
         while ($id > 0) {
             $remainder = $id % 64;
             $id = ($id - $remainder) / 64;
-            $code = $alphabet{$remainder} . $code;
+            $code = $alphabet[$remainder] . $code;
         };
         return $code;
     }
@@ -277,9 +297,9 @@ class Media extends AbstractModel
     /**
      * @return array
      */
-    public function getSquareThumbnailsUrl()
+    public function getSquareImages()
     {
-        return $this->squareThumbnailsUrl;
+        return $this->squareImages;
     }
 
 
@@ -396,6 +416,14 @@ class Media extends AbstractModel
     }
 
     /**
+     * @return Comment[]
+     */
+    public function getPreviewComments()
+    {
+        return $this->previewComments;
+    }
+
+    /**
      * @return bool
      */
     public function hasMoreComments()
@@ -417,6 +445,35 @@ class Media extends AbstractModel
     public function getSidecarMedias()
     {
         return $this->sidecarMedias;
+    }
+
+    /**
+     * @return string
+     */
+    public function getLocationSlug()
+    {
+        return $this->locationSlug;
+    }
+    /**
+     * @return string
+     */
+    public function getAltText()
+    {
+        return $this->altText;
+    }
+    /**
+     * @return string
+     */
+    public function getLocationAddressJson()
+    {
+        return $this->locationAddressJson;
+    }
+    /**
+     * @return mixed
+     */
+    public function getLocationAddress()
+    {
+        return json_decode($this->locationAddressJson);
     }
 
     /**
@@ -449,23 +506,27 @@ class Media extends AbstractModel
                 $this->likesCount = $arr[$prop]['count'];
                 break;
             case 'display_resources':
-                foreach ($value as $thumbnail) {
-                    $thumbnailsUrl[] = $thumbnail['src'];
-                    switch ($thumbnail['config_width']) {
+                foreach ($value as $media) {
+                    $mediasUrl[] = $media['src'];
+                    switch ($media['config_width']) {
                         case 640:
-                            $this->imageThumbnailUrl = $thumbnail['src'];
+                            $this->imageThumbnailUrl = $media['src'];
                             break;
                         case 750:
-                            $this->imageLowResolutionUrl = $thumbnail['src'];
+                            $this->imageLowResolutionUrl = $media['src'];
                             break;
                         case 1080:
-                            $this->imageStandardResolutionUrl = $thumbnail['src'];
+                            $this->imageStandardResolutionUrl = $media['src'];
                             break;
-                        default:
-                            ;
                     }
                 }
-                $this->squareThumbnailsUrl = $thumbnailsUrl;
+                break;
+            case 'thumbnail_resources':
+                $squareImagesUrl = [];
+                foreach ($value as $squareImage) {
+                    $squareImagesUrl[] = $squareImage['src'];
+                }
+                $this->squareImages = $squareImagesUrl;
                 break;
             case 'display_url':
                 $this->imageHighResolutionUrl = $value;
@@ -476,6 +537,9 @@ class Media extends AbstractModel
                     $this->type = static::TYPE_IMAGE;
                 }
                 break;
+            case 'thumbnail_src':
+                $this->imageThumbnailUrl = $value;
+                break;
             case 'carousel_media':
                 $this->type = self::TYPE_CAROUSEL;
                 $this->carouselMedia = [];
@@ -485,6 +549,9 @@ class Media extends AbstractModel
                 break;
             case 'caption':
                 $this->caption = $arr[$prop];
+                break;
+            case 'accessibility_caption':
+                $this->altText = $value;
                 break;
             case 'video_views':
                 $this->videoViews = $value;
@@ -506,8 +573,12 @@ class Media extends AbstractModel
                 }
                 break;
             case 'location':
-                $this->locationId = $arr[$prop]['id'];
-                $this->locationName = $arr[$prop]['name'];
+                if(isset($arr[$prop])) {
+                    $this->locationId = $arr[$prop]['id'] ? $arr[$prop]['id'] : null;
+                    $this->locationName = $arr[$prop]['name'] ? $arr[$prop]['name'] : null;
+                    $this->locationSlug = $arr[$prop]['slug'] ? $arr[$prop]['slug'] : null;
+                    $this->locationAddressJson = isset($arr[$prop]['address_json']) ? $arr[$prop]['address_json'] : null;
+                }
                 break;
             case 'user':
                 $this->owner = Account::create($arr[$prop]);
@@ -536,7 +607,18 @@ class Media extends AbstractModel
                 $this->shortCode = $value;
                 $this->link = Endpoints::getMediaPageLink($this->shortCode);
                 break;
+            case 'edge_media_preview_comment':
+                if (isset($arr[$prop]['count'])) {
+                    $this->commentsCount = (int) $arr[$prop]['count'];
+                }
+                if (isset($arr[$prop]['edges']) && is_array($arr[$prop]['edges'])) {
+                    foreach ($arr[$prop]['edges'] as $commentData) {
+                        $this->previewComments[] = Comment::create($commentData['node']);
+                    }
+                }
+                break;
             case 'edge_media_to_comment':
+            case 'edge_media_to_parent_comment':
                 if (isset($arr[$prop]['count'])) {
                     $this->commentsCount = (int) $arr[$prop]['count'];
                 }
