@@ -656,11 +656,13 @@ class Instagram
         ];
 
         while ($index < $count && $hasNextPage) {
-            $variables = json_encode([
-                'id' => (string)$id,
-                'first' => (string)$count,
-                'after' => (string)$maxId
-            ]);
+            $variables = json_encode(
+                [
+                    'id'    => (string)$id,
+                    'first' => (string)$count,
+                    'after' => (string)$maxId
+                ]
+            );
 
             $response = Request::get(
                 Endpoints::getAccountMediasJsonLink($variables),
@@ -672,13 +674,19 @@ class Instagram
             }
 
             if (static::HTTP_OK !== $response->code) {
-                throw new InstagramException('Response code is ' . $response->code . '. Body: ' . static::getErrorBody($response->body) . ' Something went wrong. Please report issue.', $response->code);
+                throw new InstagramException(
+                    'Response code is '.$response->code.'. Body: '.static::getErrorBody($response->body)
+                    .' Something went wrong. Please report issue.', $response->code
+                );
             }
 
             $arr = $this->decodeRawBodyToJson($response->raw_body);
 
             if (!is_array($arr)) {
-                throw new InstagramException('Response code is ' . $response->code . '. Body: ' . static::getErrorBody($response->body) . ' Something went wrong. Please report issue.', $response->code);
+                throw new InstagramException(
+                    'Response code is '.$response->code.'. Body: '.static::getErrorBody($response->body)
+                    .' Something went wrong. Please report issue.', $response->code
+                );
             }
 
             $nodes = $arr['data']['user']['edge_owner_to_timeline_media']['edges'];
@@ -698,9 +706,10 @@ class Instagram
                 $index++;
             }
 
-        // Fetch max id and next page information
-        $maxId = $arr['data']['user']['edge_owner_to_timeline_media']['page_info']['end_cursor'];
-        $hasNextPage = $arr['data']['user']['edge_owner_to_timeline_media']['page_info']['has_next_page'];
+            // Fetch max id and next page information
+            $maxId = $arr['data']['user']['edge_owner_to_timeline_media']['page_info']['end_cursor'];
+            $hasNextPage = $arr['data']['user']['edge_owner_to_timeline_media']['page_info']['has_next_page'];
+        }
 
         $toReturn = [
             'medias' => $medias,
